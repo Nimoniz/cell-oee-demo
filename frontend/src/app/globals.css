@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+/* Large, obviously-tappable touch targets for the tablet-first operator screen. */
+.touch-target {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

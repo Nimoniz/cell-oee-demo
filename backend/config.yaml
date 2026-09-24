@@ -1,0 +1,36 @@
+# Backend configuration. Environment: DATABASE_URL, OPCUA_ENDPOINT, ACCELERATION, CORS_ORIGINS
+# (root .env, read through docker-compose).
+notify_channel: cell_events # LISTEN/NOTIFY channel the collector wakes the API up on
+
+oee:
+  micro_stop_s: 120 # non-planned stops shorter than this are not availability losses
+  rollover_window: 1000 # counter decrease is a 32-bit rollover if the old value was within this of 2^32
+  day_start: "05:00" # production day = 05:00 -> 05:00 (first shift start), the night shift is never cut
+  shifts: # duplicated from simulator/config.yaml on purpose: a PLC does not know the MES shifts
+    - { name: matin, start: "05:00", end: "13:00" }
+    - { name: apres-midi, start: "13:00", end: "21:00" }
+    - { name: nuit, start: "21:00", end: "05:00" }
+
+collector:
+  opcua_endpoint: opc.tcp://simulator:4840
+  namespace_uri: urn:cell-oee-demo:plc
+  publish_interval_ms: 250 # subscription tuned for 60x, see CollectorCfg
+  sampling_interval_ms: 50
+  queue_size_fast: 1000 # heartbeat and weld points
+  queue_size_events: 200 # states and counters
+  heartbeat_wall_floor_s: 3 # watchdog: max(3 s wall, 5 s simulated / ACCELERATION)
+  heartbeat_sim_s: 5
+  reconnect_min_s: 0.5
+  reconnect_max_s: 10
+  last_seen_flush_s: 1
+  assembler_settle_s: 0.6
+  health_file: /tmp/collector.health
+
+api:
+  cors_origins: ["*"] # tightened via $CORS_ORIGINS in docker-compose if needed
+  ws_publish_interval_ms: 250 # live WebSocket cap: 4 msg/s max per client, whatever ACCELERATION is
+  oee_refresh_interval_s: 1 # live TRS recomputed at most once a (wall) second, shared by all clients
+  live_min_required_s: 300 # below 5 min into the shift, live TRS shows "—" instead of a misleading %
+  weld_nominal_ka: 8.0 # duplicated from simulator/config.yaml (weld section): draws the tolerance band
+  weld_tolerance_pct: 10.0
+  weld_target_buckets: 300

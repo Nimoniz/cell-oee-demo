@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 330" width="1320" height="330" role="img" aria-labelledby="t d">
+  <title id="t">Cell OEE Demo architecture</title>
+  <desc id="d">A simulated PLC exposes OPC UA to a collector, which writes to TimescaleDB; a FastAPI service reads it and serves a Next.js frontend over REST and WebSocket.</desc>
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8" />
+    </marker>
+    <style>
+      text { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .title { font-size: 20px; font-weight: 600; fill: #f1f5f9; }
+      .name { font-size: 19px; font-weight: 700; fill: #f8fafc; }
+      .line { font-size: 13px; fill: #cbd5e1; }
+      .tag { font-size: 12px; fill: #94a3b8; }
+      .edge { font-size: 12.5px; fill: #93c5fd; text-anchor: middle; }
+      .note { font-size: 13px; fill: #94a3b8; text-anchor: middle; }
+      .box { fill: #111827; stroke-width: 2; }
+      .arrow { stroke: #94a3b8; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1320" height="330" rx="14" fill="#0b1120" />
+  <text class="title" x="30" y="46">From PLC to browser</text>
+
+  <!-- 1 simulator -->
+  <rect class="box" x="30" y="90" width="180" height="150" rx="10" stroke="#22c55e" />
+  <text class="name" x="46" y="124">simulator</text>
+  <text class="line" x="46" y="152">Robotic welding cell</text>
+  <text class="line" x="46" y="172">as a Siemens S7-1500</text>
+  <text class="tag" x="46" y="204">Python · asyncua</text>
+  <text class="tag" x="46" y="222">OPC UA server :4840</text>
+
+  <!-- 2 collector -->
+  <rect class="box" x="300" y="90" width="180" height="150" rx="10" stroke="#38bdf8" />
+  <text class="name" x="316" y="124">collector</text>
+  <text class="line" x="316" y="152">Stops, counters, gaps</text>
+  <text class="line" x="316" y="172">Heartbeat watchdog</text>
+  <text class="tag" x="316" y="204">Python · asyncua client</text>
+  <text class="tag" x="316" y="222">SourceTimestamp only</text>
+
+  <!-- 3 db -->
+  <rect class="box" x="570" y="90" width="180" height="150" rx="10" stroke="#a78bfa" />
+  <text class="name" x="586" y="124">db</text>
+  <text class="line" x="586" y="152">Stops, samples, gaps</text>
+  <text class="line" x="586" y="172">Nothing pre-aggregated</text>
+  <text class="tag" x="586" y="204">PostgreSQL + TimescaleDB</text>
+  <text class="tag" x="586" y="222">hypertables</text>
+
+  <!-- 4 api -->
+  <rect class="box" x="840" y="90" width="180" height="150" rx="10" stroke="#f59e0b" />
+  <text class="name" x="856" y="124">api</text>
+  <text class="line" x="856" y="152">OEE (TRS) computed</text>
+  <text class="line" x="856" y="172">at read time, NF E60-182</text>
+  <text class="tag" x="856" y="204">FastAPI · :8000</text>
+  <text class="tag" x="856" y="222">pure OEE module</text>
+
+  <!-- 5 frontend -->
+  <rect class="box" x="1110" y="90" width="180" height="150" rx="10" stroke="#f472b6" />
+  <text class="name" x="1126" y="124">frontend</text>
+  <text class="line" x="1126" y="152">Live · Operator · Analysis</text>
+  <text class="line" x="1126" y="172">Live TRS, stop causes</text>
+  <text class="tag" x="1126" y="204">Next.js · TypeScript</text>
+  <text class="tag" x="1126" y="222">:3000</text>
+
+  <!-- edges -->
+  <line class="arrow" x1="212" y1="165" x2="298" y2="165" marker-end="url(#head)" />
+  <text class="edge" x="255" y="142">OPC UA</text>
+  <text class="edge" x="255" y="157">subscriptions</text>
+
+  <line class="arrow" x1="482" y1="165" x2="568" y2="165" marker-end="url(#head)" />
+  <text class="edge" x="525" y="142">idempotent</text>
+  <text class="edge" x="525" y="157">SQL writes</text>
+
+  <line class="arrow" x1="752" y1="165" x2="838" y2="165" marker-end="url(#head)" />
+  <text class="edge" x="795" y="142">SQL reads +</text>
+  <text class="edge" x="795" y="157">LISTEN/NOTIFY</text>
+
+  <line class="arrow" x1="1022" y1="165" x2="1108" y2="165" marker-start="url(#head)" marker-end="url(#head)" />
+  <text class="edge" x="1065" y="142">REST +</text>
+  <text class="edge" x="1065" y="157">WebSocket</text>
+
+  <text class="note" x="660" y="288">Every value carries a simulated-time SourceTimestamp; the collector and the OEE maths never use arrival time.</text>
+</svg>

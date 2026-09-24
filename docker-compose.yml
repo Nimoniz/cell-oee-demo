@@ -1,0 +1,120 @@
+# docker compose up --build
+#
+# Five services from CLAUDE.md, plus a sixth one-shot `seed` step: on a first run it fast-forwards
+# the simulator (no OPC UA, no pacing) for a few simulated days and writes them straight to the
+# database through the same tracker/store a live collector uses, then hands off its own
+# retentive state to the `simulator` service so the live simulation resumes exactly there — see
+# backend/app/collector/seed.py. `seed` is skipped (exits immediately) if the database already
+# has history, so re-running `docker compose up` on an existing volume does not re-seed.
+#
+# Ordering: db (healthy) -> seed (must exit 0) -> simulator (healthy) -> collector -> api -> front.
+# `condition: service_completed_successfully` is what makes `seed` a one-shot gate rather than a
+# service the others race against.
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: oee
+      POSTGRES_PASSWORD: oee
+      POSTGRES_DB: oee
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oee -d oee"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  seed:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.seed
+    environment:
+      DATABASE_URL: postgresql+psycopg://oee:oee@db:5432/oee
+    volumes:
+      - sim_state:/app/backend/state
+    depends_on:
+      db:
+        condition: service_healthy
+    # No `restart:` and no healthcheck: this is a job, not a server. Compose considers it done
+    # (for `service_completed_successfully`) when the process exits 0.
+
+  simulator:
+    build:
+      context: ./simulator
+    environment:
+      ACCELERATION: ${ACCELERATION:-10}
+    volumes:
+      - sim_state:/app/state
+    ports:
+      - "4840:4840" # optional: point UaExpert or another OPC UA client at it
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  collector:
+    build:
+      context: ./backend
+    command: ["python", "-m", "app.collector"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://oee:oee@db:5432/oee
+      OPCUA_ENDPOINT: opc.tcp://simulator:4840
+      ACCELERATION: ${ACCELERATION:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+      simulator:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    command: ["python", "-m", "app.api"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://oee:oee@db:5432/oee
+      ACCELERATION: ${ACCELERATION:-10}
+      CORS_ORIGINS: http://localhost:3000
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      # Reachable from the *browser* on the host, not from inside the compose network — hence
+      # localhost, not the `api` service name (see frontend/src/lib/runtimeConfig.ts).
+      API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  sim_state:

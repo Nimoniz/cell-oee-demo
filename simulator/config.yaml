@@ -1,0 +1,77 @@
+# Cell simulator configuration. Every model parameter lives here.
+seed: 42
+
+opcua:
+  endpoint: opc.tcp://0.0.0.0:4840
+  namespace_uri: urn:cell-oee-demo:plc
+
+clock:
+  # Simulated plant time, no time zone / DST. Ignored when a persisted state exists:
+  # simulated time never goes backwards across restarts.
+  start: "2026-01-05T05:00:00"
+  acceleration: 10 # 1..60
+
+shifts: # 3x8, must be contiguous
+  - { name: matin, start: "05:00", end: "13:00" }
+  - { name: apres-midi, start: "13:00", end: "21:00" }
+  - { name: nuit, start: "21:00", end: "05:00" }
+
+planned_break: # fixed in time: starts and ends on schedule, never shifted
+  offset_h: 4
+  duration_min: 20
+
+cell:
+  theoretical_cycle_s: 55
+  cycle_noise: { mean_extra_s: 1.5, sigma: 0.6 } # performance loss
+  base_scrap_rate: 0.015
+
+weld:
+  points_per_part: 12
+  nominal_current_ka: 8.0
+  tolerance_pct: 10
+  noise_sigma_pct: 2.0
+  noise_autocorrelation: 0.9
+  wear:
+    irreversible_at_cap_life: 0.6
+    reversible_at_dressing_interval: 0.25
+    dressing_recovery: 0.85
+    dressing_material_loss: 0.02
+    drift_max_pct: 4.9
+    drift_exponent: 2.0
+  tip_dressing: { every_parts: 150, jitter_pct: 10, duration_s: 30 }
+  cap_change: { every_parts: 1500, jitter_pct: 5, duration_s: 300 }
+  fault_201: { consecutive_nok_parts: 2, duration_min: [5, 20] }
+
+faults: # MTBF measured in PRODUCING time; 201 is wear-driven, see weld.fault_201
+  # Unbalanced on purpose: 202, 101 and 303 dominate the Pareto (~65 % of fault time).
+  101: { mtbf_min: 700, duration_min: [5, 25] }
+  102: { mtbf_min: 3500, duration_min: [5, 30] }
+  103: { mtbf_min: 5400, duration_min: [5, 15] }
+  202: { mtbf_min: 950, duration_min: [10, 45] }
+  203: { mtbf_min: 6300, duration_min: [15, 45] }
+  204: { mtbf_min: 4800, duration_min: [10, 40] }
+  301: { mtbf_min: 2750, duration_min: [5, 30] }
+  302: { mtbf_min: 7400, duration_min: [10, 45] }
+  303: { mtbf_min: 850, duration_min: [5, 25] }
+  900: { mtbf_min: 10000, duration_min: [10, 45] }
+
+flow:
+  starved: { rate_per_h: 1.5, p_short: 0.85, short_mean_s: 45, long_mean_min: 8 }
+  blocked: { rate_per_h: 1.0, p_short: 0.85, short_mean_s: 30, long_mean_min: 6 }
+
+manual: # operator recovery after some faults (Cell.Mode = 2)
+  after_faults: [202, 302, 303]
+  probability: 0.5
+  duration_min: [2, 10]
+
+persistence: # retentive data, like a non-volatile DB on an S7-1500
+  enabled: true
+  path: state/plc_state.json # mount a Docker volume on this directory
+  save_interval_s: 5 # wall-clock
+
+chaos: # fault injection for the collector; everything below is ignored unless enabled
+  enabled: false
+  # counters_at_start: { good: 0, scrap: 0 }             # PLC restart with counter reset
+  # counters_at_start: { good: 4294966000, scrap: 4294967000 }  # 32-bit rollover
+  # counter_reset_every_h: 12
+  # heartbeat_freeze: { every_h: 8, duration_s: 240 }  # must exceed 3 s x ACCELERATION to be detected

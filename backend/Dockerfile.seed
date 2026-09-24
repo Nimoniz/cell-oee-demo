@@ -1,0 +1,32 @@
+# The history bootstrap (app/collector/seed.py) needs both the simulator (to run its engine
+# flat out) and the backend (to write through the same tracker/store a live collector uses), so
+# this image's build context is the repo root, not backend/ alone.
+#
+#   docker build -f backend/Dockerfile.seed -t cell-oee-seed .
+#
+# One-shot job: docker-compose runs it to completion (service_completed_successfully) before the
+# simulator and collector start, then never restarts it (it is idempotent — see seed.py's
+# docstring — but there is no reason to run it again once history exists).
+
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+
+COPY simulator/pyproject.toml ./simulator/pyproject.toml
+COPY simulator/cell_sim ./simulator/cell_sim
+RUN pip install --no-cache-dir ./simulator
+
+# Mirrors backend/Dockerfile's own layout (app/ + config.yaml side by side under /app/backend):
+# `python -m app.x`, run with this as the working directory, resolves app/config.py's
+# DEFAULT_CONFIG_PATH to this directory's config.yaml (see app/config.py).
+COPY backend/pyproject.toml backend/alembic.ini backend/config.yaml ./backend/
+COPY backend/app ./backend/app
+RUN pip install --no-cache-dir ./backend
+
+# The simulator's own config drives the bootstrap (shifts, fault rates, wear model — the exact
+# same parameters the live simulator container will use, so the handoff is seamless).
+COPY simulator/config.yaml /app/simulator-config.yaml
+
+WORKDIR /app/backend
+CMD ["python", "-m", "app.collector.seed", "--sim-config", "/app/simulator-config.yaml"]

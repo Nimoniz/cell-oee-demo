@@ -18,7 +18,7 @@
     </style>
   </defs>
 
-  <rect width="1320" height="330" rx="14" fill="#0b1120" />
+  <rect x="1" y="1" width="1318" height="328" rx="14" fill="#0b1120" stroke="#30363d" stroke-width="2" />
   <text class="title" x="30" y="46">From PLC to browser</text>
 
   <!-- 1 simulator -->

@@ -35,7 +35,7 @@ Puis :
 
 Multipliez les trois : tout se simplifie en chaîne, et il reste **temps utile ÷ temps requis**. C'est ce que mon test vérifiait, mais je voyais désormais pourquoi il est vrai : ce n'est pas une coïncidence numérique, c'est la construction même de la norme. Et pièces bonnes ÷ pièces produites n'en est que le cas particulier où le TCT ne change jamais, ce qui est le cas de ma démo.
 
-La conséquence pratique m'a convaincu : si le TCT change en cours de période, la définition en temps reste exacte, et le raccourci par comptage de pièces devient faux. C'est pourquoi le TCT est stocké avec chaque échantillon de compteur, et pourquoi la section TRS de mon `CLAUDE.md` a été réécrite en temps, norme citée, avec « bonnes ÷ total » indiqué comme cas particulier. Une définition, un invariant, et tout ce qui le casserait se voit immédiatement.
+La conséquence pratique m'a convaincu : si le TCT change en cours de période, la définition en temps reste exacte, et le raccourci par comptage de pièces devient faux. C'est pourquoi le TCT est stocké avec chaque échantillon de compteur, et pourquoi la définition du TRS dans la spécification du projet a été réécrite en temps, norme citée, avec « bonnes ÷ total » indiqué comme cas particulier. Une définition, un invariant, et tout ce qui le casserait se voit immédiatement.
 
 Deux règles d'hygiène vont avec. Une valeur indéfinie vaut `null`, jamais 0 : une période sans temps requis n'a pas un TRS de 0 %, elle n'en a pas. Et un arrêt de moins de 120 secondes est un micro-arrêt : il ne compte pas comme un arrêt pour la disponibilité, il n'est pas proposé à l'opérateur, et son temps reste dans le temps de fonctionnement, donc il apparaît comme une perte de performance. C'est le cas du rodage des électrodes (30 secondes tous les 150 pièces environ). On juge un arrêt sur sa durée totale, jamais sur la part qui tombe dans la période regardée.
 
@@ -69,8 +69,6 @@ Le point qui ne se transpose pas tel quel, c'est la sécurité. Mon simulateur a
 ## Ce que cette démo n'est pas
 
 Ce n'est pas un produit. Il n'y a ni authentification, ni plusieurs cellules, ni lien avec un ERP ou un MES. La cellule est simulée : elle est crédible (usure des électrodes qui dégrade puis restaure la qualité, pannes par code défaut, pauses planifiées, manques de pièces et engorgements) mais ce n'est pas une vraie ligne. Elle sert à montrer la chaîne et à discuter du calcul.
-
-J'ai construit ce projet avec l'aide de Claude Code, et le fichier `CLAUDE.md` du dépôt, qui fixe les définitions du TRS et les règles du collecteur, en garde la trace.
 
 ## Le code
 
